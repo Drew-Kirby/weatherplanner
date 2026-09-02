@@ -41,6 +41,29 @@
   }
 }
 
+/* ---------- Weather theme ----------
+   app.js sets data-weather="<group>-<day|night>" on <html> from the
+   forecast's *current* hour (weather.js's themeFor()) — e.g. a rainy
+   evening becomes "rain-night". Each rule below only repaints the header
+   gradient and the accent color; --bg/--surface/--text stay under
+   light/dark's control so text never loses contrast just because it's
+   snowing. An attribute selector outranks a bare `:root` in specificity,
+   so these win over the light/dark blocks above regardless of which the
+   OS is in — that's deliberate: the header's text is always white, so one
+   set of weather colors works for both. */
+:root[data-weather="clear-day"]    { --header-from: #4d8fd1; --header-to: #2f6cae; --accent: #2f6cae; }
+:root[data-weather="clear-night"]  { --header-from: #16213e; --header-to: #0d1526; --accent: #5075ad; }
+:root[data-weather="cloudy-day"]   { --header-from: #7c8a9e; --header-to: #59667a; --accent: #5b6b82; }
+:root[data-weather="cloudy-night"] { --header-from: #3a414d; --header-to: #262b33; --accent: #5b6478; }
+:root[data-weather="fog-day"]      { --header-from: #9aa3ad; --header-to: #7c8791; --accent: #74808c; }
+:root[data-weather="fog-night"]    { --header-from: #454c52; --header-to: #2e3337; --accent: #656e76; }
+:root[data-weather="rain-day"]     { --header-from: #45688a; --header-to: #2c4864; --accent: #3b6690; }
+:root[data-weather="rain-night"]   { --header-from: #1c2b3a; --header-to: #101923; --accent: #3c5876; }
+:root[data-weather="snow-day"]     { --header-from: #7fa6c7; --header-to: #5e87ad; --accent: #4d7ea8; }
+:root[data-weather="snow-night"]   { --header-from: #2b3b4c; --header-to: #1a2532; --accent: #4a6a86; }
+:root[data-weather="storm-day"]    { --header-from: #55496f; --header-to: #362c50; --accent: #5b4a8a; }
+:root[data-weather="storm-night"]  { --header-from: #201a33; --header-to: #12101f; --accent: #4f4180; }
+
 * { box-sizing: border-box; }
 
 body {

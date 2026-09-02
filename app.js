@@ -208,6 +208,28 @@ function render() {
   for (const day of days) {
     daysContainer.appendChild(buildDayBlock(day, rowHeight));
   }
+  applyCurrentWeatherTheme();
+}
+
+/**
+ * Sets data-weather="rain-night" (etc.) on <html>, which style.css uses to
+ * repaint the header gradient and accent color to match. Reads it off
+ * *today's* entry for the current hour — if today hasn't loaded yet (or
+ * that hour's forecast is missing), it just leaves whatever theme is
+ * already set rather than resetting to a default.
+ */
+function applyCurrentWeatherTheme() {
+  const today = days.find((d) => isSameDay(d.date, new Date()));
+  const entry = today?.weatherByHour.get(new Date().getHours());
+  if (!entry) return;
+
+  document.documentElement.dataset.weather = entry.theme;
+
+  // Keep the PWA's status-bar color (theme-color meta tag) matching too.
+  // Read the value back from CSS rather than hardcoding it a second time
+  // here, so style.css stays the one place these colors are defined.
+  const headerColor = getComputedStyle(document.documentElement).getPropertyValue("--header-to").trim();
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", headerColor);
 }
 
 /** Wraps navigator.geolocation (callback-based) in a Promise so we can await it. */

@@ -49,6 +49,24 @@ follow-on problems that technique creates, both handled in `app.js`:
   claims the first side-by-side column whose previous occupant has
   already ended — same idea Google Calendar's own day view uses.
 
+## Weather-driven theme
+
+The header gradient and accent color change with the current hour's actual
+forecast (e.g. a rainy evening gets a dark steel-blue header; a clear
+afternoon gets sky blue). The mechanism is small and worth tracing:
+
+1. `weather.js`'s `themeFor(code, isDay)` turns a WMO weather code plus the
+   `is_day` flag Open-Meteo returns into a slug like `"rain-night"`, stored
+   on every hourly entry alongside the emoji `icon` — same input, two
+   different lookups.
+2. `app.js`'s `applyCurrentWeatherTheme()` (called at the end of every
+   `render()`) finds *today's* entry for *this* hour and sets
+   `data-weather="rain-night"` on `<html>`.
+3. `style.css` has one rule per slug — `:root[data-weather="rain-night"] { --header-from: ...; --accent: ...; }` — that overrides just those two
+   variables. Everything else (page background, card surfaces, text) stays
+   under light/dark's control, so contrast/readability never depends on
+   the weather.
+
 ## Weeks
 
 `app.js` keeps a `days` array (one entry per loaded day) instead of a

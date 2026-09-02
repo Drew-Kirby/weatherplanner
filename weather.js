@@ -25,6 +25,25 @@ function iconFor(code) {
   return WEATHER_CODE_ICONS[code] ?? "❓";
 }
 
+// Same WMO codes, grouped more coarsely — this is what drives the page's
+// color theme (the data-weather attribute in style.css). A theme only
+// needs "is it basically clear/cloudy/rainy/snowy/foggy/stormy right now",
+// not the full WMO detail the icon table uses.
+const WEATHER_CODE_GROUPS = {
+  0: "clear", 1: "clear",
+  2: "cloudy", 3: "cloudy",
+  45: "fog", 48: "fog",
+  51: "rain", 53: "rain", 55: "rain", 61: "rain", 63: "rain", 65: "rain", 80: "rain", 81: "rain", 82: "rain",
+  71: "snow", 73: "snow", 75: "snow", 77: "snow", 85: "snow", 86: "snow",
+  95: "storm", 96: "storm", 99: "storm",
+};
+
+/** e.g. themeFor(61, false) -> "rain-night". Falls back to "cloudy" for any unmapped code. */
+function themeFor(code, isDay) {
+  const group = WEATHER_CODE_GROUPS[code] ?? "cloudy";
+  return `${group}-${isDay ? "day" : "night"}`;
+}
+
 /**
  * Look up lat/lon for a US ZIP code via Zippopotam.us — another free,
  * key-free API, used only because Open-Meteo itself geocodes place
@@ -59,13 +78,13 @@ function toDateParam(date) {
  * @param {number} lon
  * @param {Date} startDate first day to include
  * @param {Date} endDate last day to include (inclusive)
- * @returns {Promise<Array<{time: Date, tempF: number, pop: number, icon: string}>>}
+ * @returns {Promise<Array<{time: Date, tempF: number, pop: number, icon: string, theme: string}>>}
  */
 async function getHourlyWeather(lat, lon, startDate, endDate) {
   const params = new URLSearchParams({
     latitude: lat,
     longitude: lon,
-    hourly: "temperature_2m,precipitation_probability,weathercode",
+    hourly: "temperature_2m,precipitation_probability,weathercode,is_day",
     temperature_unit: "fahrenheit",
     timezone: "auto", // Open-Meteo converts timestamps to the location's local time for us
     start_date: toDateParam(startDate),
@@ -82,12 +101,13 @@ async function getHourlyWeather(lat, lon, startDate, endDate) {
   // hourly.temperature_2m[i], hourly.precipitation_probability[i], etc.
   // We zip them into one array of objects because that's much easier
   // to work with than juggling four arrays by index everywhere else.
-  const { time, temperature_2m, precipitation_probability, weathercode } = data.hourly;
+  const { time, temperature_2m, precipitation_probability, weathercode, is_day } = data.hourly;
 
   return time.map((isoString, i) => ({
     time: new Date(isoString),
     tempF: Math.round(temperature_2m[i]),
     pop: precipitation_probability[i], // "probability of precipitation", 0-100
     icon: iconFor(weathercode[i]),
+    theme: themeFor(weathercode[i], is_day[i] === 1),
   }));
 }
