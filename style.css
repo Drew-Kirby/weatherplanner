@@ -1,0 +1,278 @@
+/* ---------- Design tokens ----------
+   Everything below reads from these custom properties instead of hardcoded
+   colors, so the whole app can switch palettes (e.g. light/dark) just by
+   redefining these in one place. --row-height is read by app.js too
+   (via getComputedStyle) so the JS pixel math for event positions and the
+   CSS row heights can never drift out of sync. */
+:root {
+  color-scheme: light dark;
+  --row-height: 56px;
+
+  --bg: #eef1f7;
+  --surface: #ffffff;
+  --border: #e1e5ee;
+  --text: #1c2430;
+  --text-muted: #6b7485;
+
+  --header-from: #24406b;
+  --header-to: #1a2f52;
+  --header-fg: #ffffff;
+
+  --accent: #3457d5;
+  --now-line: #e0483e;
+  --event-bg: #1f8a63;
+  --event-fg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #10151c;
+    --surface: #1a212c;
+    --border: #2a3341;
+    --text: #e7ecf5;
+    --text-muted: #8a95a8;
+
+    --header-from: #1a2740;
+    --header-to: #131d30;
+
+    --accent: #6d92ff;
+    --now-line: #ff6b60;
+    --event-bg: #2c9c72;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background: linear-gradient(135deg, var(--header-from), var(--header-to));
+  color: var(--header-fg);
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+header h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.01em; }
+.status { font-size: 0.85rem; opacity: 0.8; }
+
+.signin-btn,
+.load-more-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--header-fg);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.signin-btn:hover,
+.load-more-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.signin-btn:disabled,
+.load-more-btn:disabled { opacity: 0.6; cursor: default; }
+.signin-btn { margin-left: auto; }
+
+.options-btn {
+  background: none;
+  border: none;
+  color: var(--header-fg);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  line-height: 1;
+}
+.options-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+main {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+/* Column headers + every day-body share this exact column layout, which is
+   what keeps Time/Weather/Calendar aligned as separate day blocks. */
+.column-headers,
+.day-body {
+  display: grid;
+  grid-template-columns: 84px 1fr 2fr;
+  gap: 0.75rem;
+}
+
+.column-headers {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding: 0.5rem 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.day-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 1.25rem;
+  padding: 0.9rem 1rem 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.day-block.is-today {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.day-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.day-block.is-today .day-heading::after {
+  content: "Today";
+  margin-left: 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.time-col,
+.weather-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.hour-cell {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.time-col .hour-cell:first-child,
+.weather-col .hour-cell:first-child { border-top: none; }
+
+.time-cell { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.weather-cell .temp { font-weight: 600; margin-left: 0.35rem; }
+.weather-cell .pop { color: var(--text-muted); font-size: 0.78rem; margin-left: 0.35rem; }
+.weather-cell .muted { color: var(--text-muted); }
+
+.hour-cell.is-now { background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+
+/* The calendar column has no per-hour cells. It's one tall relatively-
+   positioned box; hour gridlines are drawn with a repeating background
+   (one line per --row-height) instead of extra DOM elements, and events
+   are position:absolute children placed by app.js using real pixel math
+   derived from their start/end time. That's what lets an event visually
+   span multiple hours instead of being pinned to just one. */
+.calendar-col {
+  position: relative;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--row-height) - 1px),
+    var(--border) calc(var(--row-height) - 1px),
+    var(--border) var(--row-height)
+  );
+}
+
+.event-block {
+  position: absolute;
+  background: var(--event-bg);
+  color: var(--event-fg);
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.event-time { font-weight: 700; opacity: 0.9; margin-right: 0.3rem; }
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--now-line);
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--now-line);
+}
+
+.load-more-btn {
+  display: block;
+  margin: 1.5rem auto 0;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.load-more-btn:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+
+/* ---------- Options dialog ---------- */
+#settings-dialog {
+  border: none;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 320px;
+  width: 90%;
+  background: var(--surface);
+  color: var(--text);
+}
+#settings-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+#settings-dialog h2 { margin-top: 0; font-size: 1.05rem; }
+#settings-dialog label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 0.75rem; }
+#settings-dialog input {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+#settings-dialog .hint { font-size: 0.75rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+.dialog-actions button {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.dialog-actions .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+@media (max-width: 560px) {
+  .column-headers, .day-body { grid-template-columns: 64px 1fr 1.6fr; gap: 0.4rem; }
+  .day-block { padding: 0.75rem 0.6rem 0.9rem; }
+}

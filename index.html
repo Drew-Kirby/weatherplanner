@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Schedule</title>
+
+  <!-- Tells the browser this page is a PWA: name, icons, colors, how it should look if installed -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1e3a5f" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Weather Schedule</h1>
+    <div id="status" class="status">Loading…</div>
+    <button id="signin-btn" class="signin-btn" hidden>Connect Google Calendar</button>
+    <button id="options-btn" class="options-btn" aria-label="Options" title="Options">⚙️</button>
+  </header>
+
+  <!--
+    <dialog> is a built-in HTML element for exactly this: a modal popup with
+    "open"/"close" behavior and a semi-transparent backdrop, all handled by
+    the browser — no custom overlay div or focus-trapping JS needed.
+  -->
+  <dialog id="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <h2>Options</h2>
+
+      <label for="zip-input">ZIP code (US)</label>
+      <input id="zip-input" name="zip" type="text" inputmode="numeric" pattern="[0-9]{5}" placeholder="e.g. 48601" />
+      <p class="hint">Leave blank to use your browser's location instead.</p>
+
+      <label for="calendar-input">Calendar (Gmail address)</label>
+      <input id="calendar-input" name="calendarId" type="email" placeholder="you@gmail.com" />
+      <p class="hint">Leave blank to use the primary calendar of whichever Google account you sign in with.</p>
+
+      <div class="dialog-actions">
+        <button type="submit" value="cancel">Cancel</button>
+        <button type="submit" value="save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!--
+    Only the column headers are static HTML. Everything below — one
+    "day block" per day, each with its own Time/Weather/Calendar row —
+    is built by app.js and inserted into #days-container. That's what
+    lets "Load next week" just append more day blocks without touching
+    this file.
+  -->
+  <main>
+    <div class="column-headers">
+      <div class="col-header">Time</div>
+      <div class="col-header">Weather</div>
+      <div class="col-header">Calendar</div>
+    </div>
+
+    <div id="days-container"></div>
+
+    <button id="load-more-btn" class="load-more-btn" hidden>Load next week ↓</button>
+  </main>
+
+  <!-- Google Identity Services library: provides the "Sign in with Google" / OAuth token popup -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script src="settings.js"></script>
+  <script src="weather.js"></script>
+  <script src="calendar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
