@@ -60,16 +60,16 @@ function isSignedIn() {
  * Fetch events between two dates (inclusive of the full days they fall on),
  * ordered by start time. One call covers as many days as you like, which
  * is why "load next week" only needs one extra request, not one per day.
+ *
+ * Always reads "primary" — Google's alias for "whichever account just
+ * signed in"'s own default calendar. There's deliberately no way to pass
+ * a different calendar ID here: the only way to see a different calendar
+ * is to sign in as the account that owns it, not by typing its address in.
  * @param {Date} startDate first day to include
  * @param {Date} endDate last day to include
- * @param {string} [calendarId] A calendar's ID — for Google accounts this
- *   is usually just the Gmail address itself. Defaults to "primary",
- *   Google's alias for "whichever account just signed in"'s default
- *   calendar, so entering your own Gmail here is only necessary if you
- *   want a *different* calendar than the one tied to that sign-in.
  * @returns {Promise<Array<{title: string, start: Date, end: Date}>>}
  */
-async function getEventsInRange(startDate, endDate, calendarId = "primary") {
+async function getEventsInRange(startDate, endDate) {
   const rangeStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
   const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate() + 1);
 
@@ -81,7 +81,7 @@ async function getEventsInRange(startDate, endDate, calendarId = "primary") {
   });
 
   const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {

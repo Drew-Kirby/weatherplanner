@@ -25,7 +25,6 @@ const signInBtn = document.getElementById("signin-btn");
 const optionsBtn = document.getElementById("options-btn");
 const settingsDialog = document.getElementById("settings-dialog");
 const zipInput = document.getElementById("zip-input");
-const calendarInput = document.getElementById("calendar-input");
 const daysContainer = document.getElementById("days-container");
 const loadMoreBtn = document.getElementById("load-more-btn");
 
@@ -265,9 +264,8 @@ async function loadCalendarForLoadedDays() {
   if (!isSignedIn() || days.length === 0) return;
   try {
     setStatus("Loading calendar…");
-    const { calendarId } = getSettings();
     // One request covers every day loaded so far, however many weeks that is.
-    const events = await getEventsInRange(days[0].date, days[days.length - 1].date, calendarId || undefined);
+    const events = await getEventsInRange(days[0].date, days[days.length - 1].date);
     for (const day of days) day.events = [];
     for (const ev of events) {
       const day = days.find((d) => isSameDay(d.date, ev.start));
@@ -312,9 +310,8 @@ async function loadWeek(weekIndex) {
 
 function setUpOptionsUI() {
   optionsBtn.addEventListener("click", () => {
-    const { zip, calendarId } = getSettings();
+    const { zip } = getSettings();
     zipInput.value = zip;
-    calendarInput.value = calendarId;
     settingsDialog.showModal(); // native modal: traps focus, dims the page, closes on Esc
   });
 
@@ -325,11 +322,10 @@ function setUpOptionsUI() {
   settingsDialog.addEventListener("close", async () => {
     if (settingsDialog.returnValue !== "save") return;
 
-    saveSettings({ zip: zipInput.value.trim(), calendarId: calendarInput.value.trim() });
+    saveSettings({ zip: zipInput.value.trim() });
 
-    // A new ZIP means new coordinates and a new calendar ID means a
-    // different feed entirely, so simplest correct thing is to start over
-    // from this week rather than trying to patch already-loaded weeks.
+    // A new ZIP means new coordinates, so simplest correct thing is to
+    // start over from this week rather than trying to patch already-loaded weeks.
     cachedCoords = null;
     days = [];
     weeksLoaded = 0;

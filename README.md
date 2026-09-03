@@ -15,7 +15,7 @@ start-to-end duration.
 | `app.js` | Builds day blocks, lays out events by time, wires weather/calendar in, handles "Load next week" |
 | `manifest.json` | Makes the page installable as a PWA |
 | `sw.js` | Minimal service worker (required for installability) |
-| `settings.js` | Reads/writes the Options panel's ZIP code + calendar email to `localStorage` |
+| `settings.js` | Reads/writes the Options panel's ZIP code to `localStorage` |
 
 ## How a day is drawn (the part worth understanding)
 
@@ -80,9 +80,16 @@ week" click.
 ## Options (⚙️ button)
 
 - **ZIP code** — overrides browser geolocation for the weather column. Looked up via [Zippopotam.us](https://www.zippopotam.us/) (free, no key) to get lat/lon, since Open-Meteo itself only geocodes place names, not postal codes.
-- **Calendar (Gmail address)** — which calendar to read events from. Google Calendar IDs are usually just the account's email address, and "primary" (the default when left blank) is Google's alias for "whichever account you just signed in with." Set this only if you want a *different* calendar than the signed-in account's own — e.g. a shared family calendar — and that account has been granted access to it.
 
-Both settings are saved in the browser's `localStorage`, so they're per-device and persist across reloads without needing a backend.
+Saved in the browser's `localStorage`, so it's per-device and persists across reloads without needing a backend.
+
+There's deliberately no field to type in a different calendar's address.
+Calendar access always reads `primary` — whichever Google account you
+actually sign in with — so the *only* way to see a different calendar is
+to sign in as the account that owns it. Letting someone type in an
+arbitrary email would either do nothing (the signed-in account has no
+access to it) or, worse, invite trying other people's calendars without
+their consent.
 
 ## Running it locally
 
