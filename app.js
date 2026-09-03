@@ -27,6 +27,13 @@ const settingsDialog = document.getElementById("settings-dialog");
 const zipInput = document.getElementById("zip-input");
 const daysContainer = document.getElementById("days-container");
 const loadMoreBtn = document.getElementById("load-more-btn");
+const datetimeEl = document.getElementById("datetime");
+const greetingEl = document.getElementById("greeting");
+const currentWeatherEl = document.getElementById("current-weather");
+const cwIconEl = document.getElementById("cw-icon");
+const cwTempEl = document.getElementById("cw-temp");
+const cwDescEl = document.getElementById("cw-desc");
+const cwHiLoEl = document.getElementById("cw-hilo");
 
 /** Each entry: { date: Date (midnight), weatherByHour: Map<hour, entry>, events: [] } */
 let days = [];
@@ -35,6 +42,16 @@ let cachedCoords = null; // resolved once per "session" (ZIP or geolocation), re
 
 function setStatus(text) {
   statusEl.textContent = text;
+}
+
+/** Updates the header's "Thursday, Sep 3 · 2:14 PM" line. Called on an
+ *  interval since, unlike everything else in the header, it's true even
+ *  when no data has (re)loaded. */
+function updateClock() {
+  const now = new Date();
+  const datePart = now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  const timePart = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  datetimeEl.textContent = `${datePart} · ${timePart}`;
 }
 
 function isSameDay(a, b) {
@@ -220,6 +237,7 @@ function render() {
 function applyCurrentWeatherTheme() {
   const today = days.find((d) => isSameDay(d.date, new Date()));
   const entry = today?.weatherByHour.get(new Date().getHours());
+  updateCurrentWeatherHeader(today, entry);
   if (!entry) return;
 
   document.documentElement.dataset.weather = entry.theme;
@@ -229,6 +247,26 @@ function applyCurrentWeatherTheme() {
   // here, so style.css stays the one place these colors are defined.
   const headerColor = getComputedStyle(document.documentElement).getPropertyValue("--header-to").trim();
   document.querySelector('meta[name="theme-color"]').setAttribute("content", headerColor);
+}
+
+/** Fills in the header's current-conditions line: icon, temp, condition,
+ *  and today's high/low (from every hour of today's forecast, not just
+ *  the visible 6 AM-midnight rows). Hides the line until there's an
+ *  actual current-hour reading to show. */
+function updateCurrentWeatherHeader(today, entry) {
+  if (!entry) {
+    currentWeatherEl.hidden = true;
+    return;
+  }
+  const temps = [...today.weatherByHour.values()].map((e) => e.tempF);
+  const hi = Math.max(...temps);
+  const lo = Math.min(...temps);
+
+  cwIconEl.textContent = entry.icon;
+  cwTempEl.textContent = `${entry.tempF}°F`;
+  cwDescEl.textContent = WEATHER_GROUP_LABELS[entry.group] ?? "";
+  cwHiLoEl.textContent = `H:${hi}° L:${lo}°`;
+  currentWeatherEl.hidden = false;
 }
 
 /** Wraps navigator.geolocation (callback-based) in a Promise so we can await it. */
@@ -355,6 +393,18 @@ function setUpCalendarUI() {
       await loadCalendarForLoadedDays();
       render();
       setStatus("Up to date");
+
+      // Best-effort: a failed profile lookup shouldn't take down calendar
+      // sign-in, so it gets its own try/catch instead of joining the one above.
+      try {
+        const profile = await getUserInfo();
+        if (profile.given_name) {
+          greetingEl.textContent = `Hello, ${profile.given_name}`;
+          greetingEl.hidden = false;
+        }
+      } catch (err) {
+        console.error(err);
+      }
     } catch (err) {
       console.error(err);
       setStatus("Google sign-in failed or was cancelled");
@@ -379,6 +429,8 @@ function setUpLoadMoreUI() {
 }
 
 async function init() {
+  updateClock();
+  setInterval(updateClock, 30000);
   setUpOptionsUI();
   setUpLoadMoreUI();
   try {

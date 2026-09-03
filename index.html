@@ -13,10 +13,27 @@
 </head>
 <body>
   <header>
-    <h1>Weather Schedule</h1>
-    <div id="status" class="status">Loading…</div>
-    <button id="signin-btn" class="signin-btn" hidden>Connect Google Calendar</button>
-    <button id="options-btn" class="options-btn" aria-label="Options" title="Options">⚙️</button>
+    <div class="header-row">
+      <div class="header-titles">
+        <h1>Weather Schedule</h1>
+        <div class="header-meta">
+          <span id="datetime" class="datetime"></span>
+          <span id="status" class="status">Loading…</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="greeting" class="greeting" hidden></span>
+        <button id="signin-btn" class="signin-btn" hidden>Connect Google Calendar</button>
+        <button id="options-btn" class="options-btn" aria-label="Options" title="Options">⚙️</button>
+      </div>
+    </div>
+
+    <div id="current-weather" class="current-weather" hidden>
+      <span id="cw-icon" class="cw-icon" aria-hidden="true"></span>
+      <span id="cw-temp" class="cw-temp"></span>
+      <span id="cw-desc" class="cw-desc"></span>
+      <span id="cw-hilo" class="cw-hilo"></span>
+    </div>
   </header>
 
   <!--

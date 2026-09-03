@@ -10,7 +10,10 @@
 // disabled and the app just shows "Calendar not configured".
 
 const GOOGLE_CLIENT_ID = "874979789418-fh62ivp1u9r41rc563sn5m9ko1djpkf8.apps.googleusercontent.com"; // <-- replace me
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+// calendar.readonly for the actual calendar data; userinfo.profile just for
+// the header's "Hello, <name>" greeting after signing in — both are
+// non-sensitive scopes, so neither triggers Google's app-verification review.
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.profile";
 
 let accessToken = null;
 let tokenClient = null;
@@ -54,6 +57,22 @@ function signIn() {
 
 function isSignedIn() {
   return accessToken !== null;
+}
+
+/**
+ * Fetches the signed-in user's basic profile (name, picture) for the
+ * header's "Hello, <name>" greeting. Needs the userinfo.profile scope
+ * requested alongside calendar.readonly in signIn().
+ * @returns {Promise<{name: string, given_name: string, picture: string}>}
+ */
+async function getUserInfo() {
+  const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Userinfo request failed: ${res.status}`);
+  }
+  return res.json();
 }
 
 /**

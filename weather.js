@@ -44,6 +44,17 @@ function themeFor(code, isDay) {
   return `${group}-${isDay ? "day" : "night"}`;
 }
 
+// Human-readable label for each WEATHER_CODE_GROUPS value — used for the
+// header's current-conditions text (e.g. "72°F  Cloudy  H:81° L:68°").
+const WEATHER_GROUP_LABELS = {
+  clear: "Clear",
+  cloudy: "Cloudy",
+  fog: "Fog",
+  rain: "Rain",
+  snow: "Snow",
+  storm: "Storm",
+};
+
 /**
  * Look up lat/lon for a US ZIP code via Zippopotam.us — another free,
  * key-free API, used only because Open-Meteo itself geocodes place
@@ -109,5 +120,6 @@ async function getHourlyWeather(lat, lon, startDate, endDate) {
     pop: precipitation_probability[i], // "probability of precipitation", 0-100
     icon: iconFor(weathercode[i]),
     theme: themeFor(weathercode[i], is_day[i] === 1),
+    group: WEATHER_CODE_GROUPS[weathercode[i]] ?? "cloudy",
   }));
 }

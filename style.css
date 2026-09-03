@@ -1,43 +1,70 @@
 /* ---------- Design tokens ----------
-   Everything below reads from these custom properties instead of hardcoded
-   colors, so the whole app can switch palettes (e.g. light/dark) just by
-   redefining these in one place. --row-height is read by app.js too
-   (via getComputedStyle) so the JS pixel math for event positions and the
-   CSS row heights can never drift out of sync. */
+   Apple-style system palette: translucent "glass" surfaces over a soft
+   background wash, blurred with backdrop-filter wherever a bar or card
+   sits on top of scrolling content — the iOS/macOS material look.
+   Everything reads from these custom properties so light/dark and the
+   per-weather accent can repaint the whole app from one place.
+   --row-height is read by app.js too (via getComputedStyle) so the JS
+   pixel math for event positions and the CSS row heights never drift. */
 :root {
   color-scheme: light dark;
-  --row-height: 56px;
+  --row-height: 52px;
+  --col-gap: 0.75rem;
 
-  --bg: #eef1f7;
+  --bg: #f2f2f7;
+  --bg-wash:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 42%),
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--now-line) 22%, transparent), transparent 38%),
+    radial-gradient(circle at 50% 95%, color-mix(in srgb, var(--event-bg) 26%, transparent), transparent 45%);
+
+  --glass: color-mix(in srgb, white 72%, transparent);
+  --glass-strong: color-mix(in srgb, white 86%, transparent);
+  --glass-border: rgba(60, 60, 67, 0.13);
+  --glass-highlight: rgba(255, 255, 255, 0.6);
+  --blur: blur(24px) saturate(180%);
+
   --surface: #ffffff;
-  --border: #e1e5ee;
-  --text: #1c2430;
-  --text-muted: #6b7485;
+  --border: rgba(60, 60, 67, 0.13);
+  --text: #1c1c1e;
+  --text-muted: rgba(60, 60, 67, 0.6);
 
   --header-from: #24406b;
   --header-to: #1a2f52;
   --header-fg: #ffffff;
 
-  --accent: #3457d5;
-  --now-line: #e0483e;
-  --event-bg: #1f8a63;
-  --event-fg: #ffffff;
+  --accent: #007aff;
+  --now-line: #ff3b30;
+  --event-bg: #34c759;
+
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 11px;
+  --shadow-card: inset 0 1px 0 var(--glass-highlight), 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-float: inset 0 1px 0 var(--glass-highlight), 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #10151c;
-    --surface: #1a212c;
-    --border: #2a3341;
-    --text: #e7ecf5;
-    --text-muted: #8a95a8;
+    --bg: #000000;
+    --glass: color-mix(in srgb, #1c1c1e 68%, transparent);
+    --glass-strong: color-mix(in srgb, #1c1c1e 84%, transparent);
+    --glass-border: rgba(84, 84, 88, 0.48);
+    --glass-highlight: rgba(255, 255, 255, 0.07);
+
+    --surface: #1c1c1e;
+    --border: rgba(84, 84, 88, 0.48);
+    --text: #f2f2f7;
+    --text-muted: rgba(235, 235, 245, 0.6);
 
     --header-from: #1a2740;
     --header-to: #131d30;
 
-    --accent: #6d92ff;
-    --now-line: #ff6b60;
-    --event-bg: #2c9c72;
+    --accent: #0a84ff;
+    --now-line: #ff453a;
+    --event-bg: #30d158;
+
+    --shadow-card: inset 0 1px 0 var(--glass-highlight), 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-float: inset 0 1px 0 var(--glass-highlight), 0 12px 36px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -64,61 +91,139 @@
 :root[data-weather="storm-day"]    { --header-from: #55496f; --header-to: #362c50; --accent: #5b4a8a; }
 :root[data-weather="storm-night"]  { --header-from: #201a33; --header-to: #12101f; --accent: #4f4180; }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-  background: var(--bg);
+  min-height: 100dvh;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-wash), var(--bg);
+  background-attachment: fixed;
   color: var(--text);
+  transition: background-color 0.3s ease;
 }
 
+/* ---------- Header: iOS-style large-title nav bar ----------
+   Two stacked rows: the title/clock/actions row, then an optional
+   current-conditions row (icon, temp, description, high/low) that's
+   hidden until app.js has an actual current-hour reading to show. */
 header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   background: linear-gradient(135deg, var(--header-from), var(--header-to));
   color: var(--header-fg);
-  padding: 0.85rem 1.25rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.9rem) 1.1rem 0.9rem;
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
 }
 
-header h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.01em; }
-.status { font-size: 0.85rem; opacity: 0.8; }
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.85rem;
+}
+
+.header-titles { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+
+header h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.datetime { opacity: 0.85; font-weight: 500; white-space: nowrap; }
+.status { opacity: 0.75; font-weight: 500; }
+.header-meta .status::before {
+  content: "•";
+  margin-right: 0.5rem;
+  opacity: 0.5;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: none;
+}
+.greeting { font-size: 0.85rem; font-weight: 600; opacity: 0.95; white-space: nowrap; }
+
+.current-weather {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.cw-icon { font-size: 1.5rem; line-height: 1; }
+.cw-temp { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+.cw-desc { font-size: 0.92rem; font-weight: 500; opacity: 0.85; }
+.cw-hilo { font-size: 0.8rem; font-weight: 500; opacity: 0.7; margin-left: auto; white-space: nowrap; }
 
 .signin-btn,
 .load-more-btn {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--header-fg);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
   font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 .signin-btn:hover,
-.load-more-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.load-more-btn:hover { background: rgba(255, 255, 255, 0.26); }
+.signin-btn:active,
+.load-more-btn:active { transform: scale(0.96); }
 .signin-btn:disabled,
-.load-more-btn:disabled { opacity: 0.6; cursor: default; }
-.signin-btn { margin-left: auto; }
+.load-more-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 
 .options-btn {
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--header-fg);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
   line-height: 1;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
-.options-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.options-btn:hover { background: rgba(255, 255, 255, 0.26); }
+.options-btn:active { transform: scale(0.92); }
 
 main {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 1.25rem 1rem 3rem;
+  padding: 1.1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 3rem);
 }
 
 /* Column headers + every day-body share this exact column layout, which is
@@ -127,50 +232,59 @@ main {
 .day-body {
   display: grid;
   grid-template-columns: 84px 1fr 2fr;
-  gap: 0.75rem;
+  gap: var(--col-gap);
 }
 
 .column-headers {
   position: sticky;
-  top: 0;
+  top: calc(env(safe-area-inset-top, 0px) + 136px);
   z-index: 5;
-  background: var(--bg);
-  padding: 0.5rem 0.25rem;
-  font-size: 0.75rem;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  padding: 0.6rem 0.6rem;
+  margin: 0 -0.1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
 }
 
 .day-block {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  margin-top: 1.25rem;
-  padding: 0.9rem 1rem 1.1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  margin-top: 1.1rem;
+  padding: 1rem 1.1rem 1.2rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .day-block.is-today {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--glass-border));
+  box-shadow: 0 0 0 1.5px var(--accent), var(--shadow-card);
 }
 
 .day-heading {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .day-block.is-today .day-heading::after {
   content: "Today";
   margin-left: 0.6rem;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  padding: 0.15rem 0.45rem;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: var(--accent);
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
   vertical-align: middle;
 }
@@ -186,16 +300,34 @@ main {
   align-items: center;
   font-size: 0.85rem;
   border-top: 1px solid var(--border);
+  min-height: var(--row-height);
 }
 .time-col .hour-cell:first-child,
 .weather-col .hour-cell:first-child { border-top: none; }
 
-.time-cell { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time-cell { color: var(--text-muted); font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
 .weather-cell .temp { font-weight: 600; margin-left: 0.35rem; }
 .weather-cell .pop { color: var(--text-muted); font-size: 0.78rem; margin-left: 0.35rem; }
 .weather-cell .muted { color: var(--text-muted); }
 
-.hour-cell.is-now { background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+/* The current-hour highlight spans both the time and weather columns as one
+   continuous bar. Each column is its own grid track separated by --col-gap,
+   so the time-cell's highlight bleeds all the way across that gap to meet
+   the weather-cell's flush — otherwise the two rounded pills would read as
+   separate chips with a visible seam between them. */
+.hour-cell.is-now {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+.time-col .hour-cell.is-now {
+  margin: 0 calc(-0.5rem - var(--col-gap)) 0 -0.5rem;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.weather-col .hour-cell.is-now {
+  margin: 0 -0.5rem 0 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
 
 /* The calendar column has no per-hour cells. It's one tall relatively-
    positioned box; hour gridlines are drawn with a repeating background
@@ -216,16 +348,23 @@ main {
 
 .event-block {
   position: absolute;
-  background: var(--event-bg);
-  color: var(--event-fg);
-  border-radius: 6px;
-  padding: 0.15rem 0.5rem;
+  left: 2px;
+  right: 2px;
+  background: color-mix(in srgb, var(--event-bg) 18%, var(--glass));
+  border: 1px solid color-mix(in srgb, var(--event-bg) 32%, transparent);
+  border-left: 3px solid var(--event-bg);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.55rem 0.2rem 0.5rem;
   font-size: 0.78rem;
+  font-weight: 500;
   line-height: 1.25;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--event-bg) 20%, transparent);
 }
-.event-time { font-weight: 700; opacity: 0.9; margin-right: 0.3rem; }
+.event-time { font-weight: 700; color: var(--event-bg); margin-right: 0.3rem; }
 
 .now-line {
   position: absolute;
@@ -233,7 +372,9 @@ main {
   right: 0;
   height: 2px;
   background: var(--now-line);
+  box-shadow: 0 0 0 1.5px var(--bg), 0 1px 4px color-mix(in srgb, var(--now-line) 60%, transparent);
   pointer-events: none;
+  z-index: 2;
 }
 .now-line::before {
   content: "";
@@ -244,58 +385,120 @@ main {
   height: 8px;
   border-radius: 50%;
   background: var(--now-line);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 5px color-mix(in srgb, var(--now-line) 25%, transparent);
 }
 
 .load-more-btn {
   display: block;
   margin: 1.5rem auto 0;
   color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
 }
-.load-more-btn:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.load-more-btn:hover { background: color-mix(in srgb, var(--accent) 10%, var(--glass)); }
 
-/* ---------- Options dialog ---------- */
+/* ---------- Options dialog ----------
+   A floating glass sheet on larger screens; on narrow/mobile viewports it
+   docks to the bottom of the screen with rounded top corners, matching an
+   iOS action sheet. */
 #settings-dialog {
   border: none;
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  max-width: 320px;
+  border-radius: var(--radius-lg);
+  padding: 1.4rem 1.5rem;
+  max-width: 340px;
   width: 90%;
+  background: var(--glass-strong);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  color: var(--text);
+  box-shadow: var(--shadow-float);
+}
+#settings-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+#settings-dialog h2 { margin-top: 0; font-size: 1.1rem; letter-spacing: -0.01em; }
+#settings-dialog label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 0.85rem; }
+#settings-dialog input {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
 }
-#settings-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
-#settings-dialog h2 { margin-top: 0; font-size: 1.05rem; }
-#settings-dialog label { display: block; font-size: 0.85rem; font-weight: 600; margin-top: 0.75rem; }
-#settings-dialog input {
-  width: 100%;
-  padding: 0.4rem 0.5rem;
-  margin-top: 0.25rem;
-  font-size: 0.95rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
+#settings-dialog input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
-#settings-dialog .hint { font-size: 0.75rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+#settings-dialog .hint { font-size: 0.78rem; color: var(--text-muted); margin: 0.35rem 0 0; }
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.25rem;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
 }
 .dialog-actions button {
-  padding: 0.4rem 0.9rem;
-  border-radius: 6px;
+  padding: 0.55rem 1.1rem;
+  min-height: 44px;
+  border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
 }
+.dialog-actions button:active { transform: scale(0.96); }
 .dialog-actions .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+/* ---------- Responsive / mobile ---------- */
+@media (max-width: 640px) {
+  #settings-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    margin: 0;
+    max-width: none;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 1.25rem 1.25rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
+  }
+}
+
 @media (max-width: 560px) {
-  .column-headers, .day-body { grid-template-columns: 64px 1fr 1.6fr; gap: 0.4rem; }
-  .day-block { padding: 0.75rem 0.6rem 0.9rem; }
+  :root { --row-height: 44px; --col-gap: 0.4rem; }
+  header { padding-left: 0.9rem; padding-right: 0.9rem; }
+  header h1 { font-size: 1.05rem; }
+  .cw-temp { font-size: 1.35rem; }
+  .cw-hilo { margin-left: 0; }
+  main { padding-left: 0.6rem; padding-right: 0.6rem; }
+  .column-headers, .day-body { grid-template-columns: 56px 1fr 1.6fr; }
+  .day-block { padding: 0.85rem 0.7rem 1rem; border-radius: var(--radius-md); }
+  .column-headers { top: calc(env(safe-area-inset-top, 0px) + 126px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.001ms !important; }
+}
+
+/* Fallback for browsers without backdrop-filter support: fall back to a
+   solid surface so text stays legible instead of floating on nothing. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  header,
+  .column-headers,
+  .day-block,
+  .signin-btn,
+  .load-more-btn,
+  .options-btn,
+  #settings-dialog {
+    background: var(--surface);
+  }
 }
